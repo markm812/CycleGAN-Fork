@@ -303,16 +303,16 @@ class CycleGANTraining(object):
                 self.store_to_file(store_to_file)
                 print("Time taken for validation Set: {}".format(
                     validation_end_time - validation_start_time))
-                    
-    def validation_for_A_dir(self,epoch_numb):
+
+    def validation_for_A_dir(self,epoch):
         num_mcep = 36
         sampling_rate = 16000
         frame_period = 5.0
         n_frames = 128
         validation_A_dir = self.validation_A_dir
-        output_A_dir = f"{self.output_A_dir}_{epoch_numb}"
-        os.makedirs(output_A_dir,exist_ok=True)
-        
+        output_A_dir = self.output_A_dir + f"{epoch}"
+        os.makedirs(output_A_dir, exist_ok=True)
+
         print("Generating Validation Data B from A...")
         for file in os.listdir(validation_A_dir):
             filePath = os.path.join(validation_A_dir, file)
@@ -358,16 +358,14 @@ class CycleGANTraining(object):
                                      y=wav_transformed,
                                      sr=sampling_rate)
 
-    def validation_for_B_dir(self,epoch_numb):
+    def validation_for_B_dir(self,epoch):
         num_mcep = 36
         sampling_rate = 16000
         frame_period = 5.0
         n_frames = 128
         validation_B_dir = self.validation_B_dir
-        
-        output_B_dir = f"{self.output_B_dir}_{epoch_numb}"
-        os.makedirs(output_B_dir,exist_ok=True)
-
+        output_B_dir = self.output_B_dir+ f"{epoch}"
+        os.makedirs(output_B_dir, exist_ok=True)
         print("Generating Validation Data A from B...")
         for file in os.listdir(validation_B_dir):
             filePath = os.path.join(validation_B_dir, file)
