@@ -30,7 +30,9 @@ class CycleGANTraining(object):
                  output_A_dir,
                  validation_B_dir,
                  output_B_dir,
-                 restart_training_at=None):
+                 vc_only,
+                 restart_training_at=None
+                 ):
         self.start_epoch = 0
         self.num_epochs = 200000  # 5000
         self.mini_batch_size = 1  # 1
@@ -105,6 +107,7 @@ class CycleGANTraining(object):
             # Training will resume from previous checkpoint
             self.start_epoch = self.loadModel(restart_training_at)
             print("Training resumed")
+        self.vc_only = vc_only
 
     def adjust_lr_rate(self, optimizer, name='generator'):
         if name == 'generator':
@@ -143,6 +146,18 @@ class CycleGANTraining(object):
                                                        drop_last=False)
 
             pbar = tqdm(enumerate(train_loader))
+            if self.vc_only:
+                validation_start_time = time.time()
+                self.validation_for_A_dir(epoch)
+                self.validation_for_B_dir(epoch)
+                validation_end_time = time.time()
+                store_to_file = "Time taken for validation Set: {}".format(
+                    validation_end_time - validation_start_time)
+                self.store_to_file(store_to_file)
+                print("Time taken for validation Set: {}".format(
+                    validation_end_time - validation_start_time))
+                return
+
             for i, (real_A, real_B) in enumerate(train_loader):
                 num_iterations = (n_samples // self.mini_batch_size) * epoch + i
                 # print("iteration no: ", num_iterations, epoch)
@@ -261,23 +276,6 @@ class CycleGANTraining(object):
                             d_loss.item(), generator_loss_A2B, generator_loss_B2A, identiyLoss, cycleLoss, d_loss_A,
                             d_loss_B))
 
-            #                 if num_iterations % 50 == 0:
-            #                     store_to_file = "Iter:{}\t Generator Loss:{:.4f} Discrimator Loss:{:.4f} \tGA2B:{:.4f} GB2A:{:.4f} G_id:{:.4f} G_cyc:{:.4f} D_A:{:.4f} D_B:{:.4f}".format(
-            #                         num_iterations, generator_loss.item(), d_loss.item(), generator_loss_A2B, generator_loss_B2A,
-            #                         identiyLoss, cycleLoss, d_loss_A, d_loss_B)
-            #                     print(
-            #                         "Iter:{}\t Generator Loss:{:.4f} Discrimator Loss:{:.4f} \tGA2B:{:.4f} GB2A:{:.4f} G_id:{:.4f} G_cyc:{:.4f} D_A:{:.4f} D_B:{:.4f}".format(
-            #                             num_iterations, generator_loss.item(), d_loss.item(), generator_loss_A2B,
-            #                             generator_loss_B2A, identiyLoss, cycleLoss, d_loss_A, d_loss_B))
-            #                     self.store_to_file(store_to_file)
-
-            #             end_time = time.time()
-            #             store_to_file = "Epoch: {} Generator Loss: {:.4f} Discriminator Loss: {}, Time: {:.2f}\n\n".format(
-            #                 epoch, generator_loss.item(), d_loss.item(), end_time - start_time_epoch)
-            #             self.store_to_file(store_to_file)
-            #             print("Epoch: {} Generator Loss: {:.4f} Discriminator Loss: {}, Time: {:.2f}\n\n".format(
-            #                 epoch, generator_loss.item(), d_loss.item(), end_time - start_time_epoch))
-
             if epoch % 400 == 0 and epoch != 0:
                 end_time = time.time()
                 store_to_file = "Epoch: {} Generator Loss: {:.4f} Discriminator Loss: {}, Time: {:.2f}\n\n".format(
@@ -287,32 +285,34 @@ class CycleGANTraining(object):
                     epoch, generator_loss.item(), d_loss.item(), end_time - start_time_epoch))
 
                 # Save the Entire model
+                
                 print("Saving model Checkpoint  ......")
                 store_to_file = "Saving model Checkpoint  ......"
                 self.store_to_file(store_to_file)
                 self.saveModelCheckPoint(epoch, '{}'.format(
-                    self.modelCheckpoint + '_CycleGAN_CheckPoint'))
+                    self.modelCheckpoint + '_CycleGAN_CheckPoint_' + str(epoch)))
                 print("Model Saved!")
 
                 # Validation Set
                 validation_start_time = time.time()
-                self.validation_for_A_dir()
-                self.validation_for_B_dir()
+                self.validation_for_A_dir(epoch)
+                self.validation_for_B_dir(epoch)
                 validation_end_time = time.time()
                 store_to_file = "Time taken for validation Set: {}".format(
                     validation_end_time - validation_start_time)
                 self.store_to_file(store_to_file)
                 print("Time taken for validation Set: {}".format(
                     validation_end_time - validation_start_time))
-
-    def validation_for_A_dir(self):
+                    
+    def validation_for_A_dir(self,epoch_numb):
         num_mcep = 36
         sampling_rate = 16000
         frame_period = 5.0
         n_frames = 128
         validation_A_dir = self.validation_A_dir
-        output_A_dir = self.output_A_dir
-
+        output_A_dir = f"{self.output_A_dir}_{epoch_numb}"
+        os.makedirs(output_A_dir,exist_ok=True)
+        
         print("Generating Validation Data B from A...")
         for file in os.listdir(validation_A_dir):
             filePath = os.path.join(validation_A_dir, file)
@@ -358,13 +358,15 @@ class CycleGANTraining(object):
                                      y=wav_transformed,
                                      sr=sampling_rate)
 
-    def validation_for_B_dir(self):
+    def validation_for_B_dir(self,epoch_numb):
         num_mcep = 36
         sampling_rate = 16000
         frame_period = 5.0
         n_frames = 128
         validation_B_dir = self.validation_B_dir
-        output_B_dir = self.output_B_dir
+        
+        output_B_dir = f"{self.output_B_dir}_{epoch_numb}"
+        os.makedirs(output_B_dir,exist_ok=True)
 
         print("Generating Validation Data A from B...")
         for file in os.listdir(validation_B_dir):
@@ -496,7 +498,8 @@ if __name__ == '__main__':
                         help="Validation set for sound source B", default=validation_B_dir_default)
     parser.add_argument('--output_B_dir', type=str,
                         help="Output for converted sound Source B", default=output_B_dir_default)
-
+    parser.add_argument('--vc_only', type=bool,
+                        help="Only do VC, no training", default=False)
     argv = parser.parse_args()
 
     logf0s_normalization = argv.logf0s_normalization
@@ -510,7 +513,7 @@ if __name__ == '__main__':
     output_A_dir = argv.output_A_dir
     validation_B_dir = argv.validation_B_dir
     output_B_dir = argv.output_B_dir
-
+    vc_only = argv.vc_only
     # Check whether following cached files exists
     if not os.path.exists(logf0s_normalization) or not os.path.exists(mcep_normalization):
         print(
@@ -525,5 +528,7 @@ if __name__ == '__main__':
                                 output_A_dir=output_A_dir,
                                 validation_B_dir=validation_B_dir,
                                 output_B_dir=output_B_dir,
-                                restart_training_at=resume_training_at)
+                                restart_training_at=resume_training_at,
+                                vc_only = vc_only
+                                )
     cycleGAN.train()
