@@ -54,15 +54,3 @@ class trainingDataset(Dataset):
 
     def __len__(self):
         return min(len(self.datasetA), len(self.datasetB))
-
-
-# if __name__ == '__main__':
-#     trainA = np.random.randn(162, 24, 554)
-#     trainB = np.random.randn(158, 24, 554)
-#     dataset = trainingDataset(trainA, trainB)
-#     trainLoader = torch.utils.data.DataLoader(dataset=dataset,
-#                                               batch_size=2,
-#                                               shuffle=True)
-#     for epoch in range(10):
-#         for i, (trainA, trainB) in enumerate(trainLoader):
-#             print(trainA.shape, trainB.shape)
